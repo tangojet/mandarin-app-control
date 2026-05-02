@@ -1,0 +1,30 @@
+name: wechat
+
+services:
+  desktop:
+    container_name: wechat-desktop
+    image: ozaiya-desktop:latest
+    restart: unless-stopped
+    ports:
+      - "55007:8080"   # AT-SPI agent API
+      - "56090:6080"   # noVNC web UI
+      - "55900:5900"   # VNC
+    volumes:
+      - ~/openclaw-local/wechat-data:/home/desktop/.config
+    environment:
+      TARGET_APP: wechat
+      TARGET_APP_ARGS: ""
+      RESOLUTION: "1280x800x24"
+      VNC_PASSWORD: "wechat1"
+    networks:
+      default:
+        ipv4_address: 172.31.0.10
+        aliases:
+          - desktop
+
+networks:
+  default:
+    name: wechat-net
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
