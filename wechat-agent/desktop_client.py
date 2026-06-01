@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -21,24 +21,44 @@ class DesktopClient:
     def __init__(self):
         self._base_url = DESKTOP_AGENT_URL.rstrip("/")
         self._timeout = REQUEST_TIMEOUT
+        self._client: Optional[httpx.AsyncClient] = None
 
-    async def _get(self, path: str, params: Optional[Dict] = None) -> any:
-        async with httpx.AsyncClient(timeout=self._timeout) as c:
-            resp = await c.get(f"{self._base_url}{path}", params=params)
-            resp.raise_for_status()
-            return resp.json()
+    async def startup(self) -> None:
+        """Open the shared HTTP client (call on app startup)."""
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                base_url=self._base_url, timeout=self._timeout,
+            )
+
+    async def aclose(self) -> None:
+        """Close the shared HTTP client (call on app shutdown)."""
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
+    @property
+    def _http(self) -> httpx.AsyncClient:
+        # Lazily open the client so calls before startup() still work.
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                base_url=self._base_url, timeout=self._timeout,
+            )
+        return self._client
+
+    async def _get(self, path: str, params: Optional[Dict] = None) -> Any:
+        resp = await self._http.get(path, params=params)
+        resp.raise_for_status()
+        return resp.json()
 
     async def _get_raw(self, path: str, params: Optional[Dict] = None) -> bytes:
-        async with httpx.AsyncClient(timeout=self._timeout) as c:
-            resp = await c.get(f"{self._base_url}{path}", params=params)
-            resp.raise_for_status()
-            return resp.content
+        resp = await self._http.get(path, params=params)
+        resp.raise_for_status()
+        return resp.content
 
-    async def _post(self, path: str, data: Dict) -> any:
-        async with httpx.AsyncClient(timeout=self._timeout) as c:
-            resp = await c.post(f"{self._base_url}{path}", json=data)
-            resp.raise_for_status()
-            return resp.json()
+    async def _post(self, path: str, data: Dict) -> Any:
+        resp = await self._http.post(path, json=data)
+        resp.raise_for_status()
+        return resp.json()
 
     # ── High-level API ────────────────────────────────────────────────────
 
@@ -52,7 +72,7 @@ class DesktopClient:
     async def apps(self) -> List[Dict]:
         return await self._get("/apps")
 
-    async def tree(self, app_name: Optional[str] = None, max_depth: int = 6) -> any:
+    async def tree(self, app_name: Optional[str] = None, max_depth: int = 6) -> Any:
         params = {"max_depth": str(max_depth)}
         if app_name:
             params["app"] = app_name

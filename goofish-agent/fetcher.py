@@ -9,7 +9,7 @@ import os
 import shutil
 from typing import Optional
 
-from models import Author, Comment, GoofishItem
+from models import GoofishItem
 
 logger = logging.getLogger("goofish-agent")
 
@@ -87,24 +87,8 @@ class GoofishFetcher:
             if data.get("error"):
                 raise RuntimeError(f"CDP extraction error: {data['error']}")
 
-            return GoofishItem(
-                platform=data["platform"],
-                title=data["title"],
-                author=Author(
-                    name=data["author"]["name"],
-                    id=data["author"].get("id", ""),
-                    avatar=data["author"].get("avatar"),
-                    ip_location=data["author"].get("ip_location"),
-                    signature=data["author"].get("signature"),
-                ),
-                content=data["content"],
-                stats=data["stats"],
-                images=data.get("images", []),
-                video_url=data.get("video_url"),
-                comments=[Comment(**c) for c in data.get("comments", [])],
-                url=data["url"],
-                fetched_at=data["fetched_at"],
-            )
+            # Pydantic parses nested Author/Comment models from the dict directly.
+            return GoofishItem.model_validate(data)
         except asyncio.TimeoutError:
             raise RuntimeError("CDP extraction timed out (35s)")
         except json.JSONDecodeError as e:

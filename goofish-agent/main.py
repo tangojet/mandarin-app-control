@@ -9,12 +9,15 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from shared.app import create_app, load_env
+from shared.server import run as run_server
+
+load_env()  # load .env before any module-level os.environ reads below
+
 from fastapi import HTTPException, Query
 
 from fetcher import GoofishFetcher
 from models import GoofishItem
-from shared.app import create_app
-from shared.server import run as run_server
 from url_parser import is_goofish_url
 
 logger = logging.getLogger("goofish-agent")

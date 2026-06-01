@@ -15,4 +15,17 @@ fi
 
 export PYTHONPATH="$(dirname "$0"):${PYTHONPATH:-}"
 
-exec python "$AGENT_DIR/main.py"
+# Pick a Python interpreter: $PYTHON override, else python3, else python.
+PYTHON_BIN="${PYTHON:-}"
+if [[ -z "$PYTHON_BIN" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN=python3
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON_BIN=python
+  else
+    echo "No python interpreter found (set \$PYTHON)" >&2
+    exit 1
+  fi
+fi
+
+exec "$PYTHON_BIN" "$AGENT_DIR/main.py"

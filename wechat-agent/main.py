@@ -5,24 +5,38 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from contextlib import asynccontextmanager
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from shared.app import create_app, load_env
+from shared.server import run as run_server
+
+load_env()  # load .env before any module-level os.environ reads below
 
 from fastapi import HTTPException, Query, Request
 from fastapi.responses import Response
 
 from desktop_client import DesktopClient
 from models import HealthResponse, TreeResponse, FindRequest, ActionRequest, TypeRequest, ScrollRequest, KeyRequest, ClickRequest
-from shared.app import create_app
-from shared.server import run as run_server
 
 logger = logging.getLogger("wechat-agent")
 
 client = DesktopClient()
 
-app = create_app("wechat-agent")
-
 WECHAT_APP_NAME = os.environ.get("WECHAT_APP_NAME", "wechat")
+
+
+@asynccontextmanager
+async def lifespan(app):
+    await client.startup()
+    try:
+        yield
+    finally:
+        await client.aclose()
+
+
+app = create_app("wechat-agent", lifespan=lifespan)
 
 
 @app.get("/health")
